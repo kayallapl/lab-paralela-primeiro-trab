@@ -383,6 +383,7 @@ void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
 ```
 
 Este código deu o mesmo tempo que o anterior.
+```shell
 $ mpirun -np 1 ./gauss_mpi_melhorado
 Foram gastos 3.4971430000 segundos
 
@@ -391,3 +392,6 @@ Foram gastos 1.8210440000 segundos
 
 $ mpirun -np 4 ./gauss_mpi_melhorado
 Foram gastos 0.9705120000 segundos
+```
+
+A análise de speedup e eficiência está em [https://github.com/kayallapl/lab-paralela-primeiro-trab/blob/main/Análises_Speedup.pdf](Análises Speedup).

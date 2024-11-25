@@ -1,3 +1,6 @@
+O chatGPT forneceu o seguinte código:
+
+```python
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
@@ -43,7 +46,6 @@ void backSubstitution(double *matrix, double *b, double *x, int n, int rank, int
 }
 
 int main(int argc, char *argv[]) {
-    double tempo_inicial, tempo_final; /* Tempo de execução */
     int n = 3; // Dimensão do sistema (modifique conforme necessário)
     double matrix[] = {
         2.0, 1.0, -1.0,
@@ -59,19 +61,54 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    tempo_inicial = MPI_Wtime();
     gaussElimination(matrix, b, n, rank, size);
     backSubstitution(matrix, b, x, n, rank, size);
-    tempo_final = MPI_Wtime();
 
     if (rank == 0) {
         printf("Solução do sistema:\n");
         for (int i = 0; i < n; ++i) {
             printf("x[%d] = %f\n", i, x[i]);
         }
-        printf("Foram gastos %.10f segundos\n",tempo_final-tempo_inicial);
     }
 
     MPI_Finalize();
     return 0;
 }
+```
+
+A primeira coisa que fizemos foi adicionar a função MPI_Wtime() para marcar o tempo de execução.
+
+```python
+tempo_inicial = MPI_Wtime();
+gaussElimination(matrix, b, n, rank, size);
+backSubstitution(matrix, b, x, n, rank, size);
+tempo_final = MPI_Wtime();
+```
+
+Os tempos iniciais foram muito pequenos, porém os tempos para mais processos estava dando maior. Isso se dá pelo overhead de comunicação, a própria divisão de processos acabou usando mais tempo:
+
+```shell
+$ mpirun -np 2 ./gauss_mpi_melhorado
+Solução do sistema:
+x[0] = 2.000000
+x[1] = 3.000000
+x[2] = -1.000000
+Foram gastos 0.0000430000 segundos
+
+$ mpirun -np 4 ./gauss_mpi_melhorado
+Solução do sistema:
+x[0] = 2.000000
+x[1] = 3.000000
+x[2] = -1.000000
+Foram gastos 0.0000680000 segundos
+
+$ mpirun -np 8 ./gauss_mpi_melhorado
+Solução do sistema:
+x[0] = 2.000000
+x[1] = 3.000000
+x[2] = -1.000000
+Foram gastos 0.0001970000 segundos
+```
+
+Então, ao invés de criar uma pequena matriz estática, criamos dinamicamente uma matriz de 1000 valores. Para isso, usamos malloc para armazenar essa matriz.
+

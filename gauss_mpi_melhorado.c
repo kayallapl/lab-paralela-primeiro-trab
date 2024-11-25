@@ -15,9 +15,24 @@ void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
             b[k] /= pivot;
         }
 
-        // Broadcast da linha pivô
-        MPI_Bcast(&matrix[k * n], n, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
-        MPI_Bcast(&b[k], 1, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
+        // Reduzir linha pivô para todos os processos
+        double *pivot_row = (double *)malloc(n * sizeof(double));
+        MPI_Reduce(&matrix[k * n], pivot_row, n, MPI_DOUBLE, MPI_SUM, k % size, MPI_COMM_WORLD);
+
+        double pivot_b;
+        MPI_Reduce(&b[k], &pivot_b, 1, MPI_DOUBLE, MPI_SUM, k % size, MPI_COMM_WORLD);
+
+        // Broadcast dos valores reduzidos (somente o processo responsável envia)
+        MPI_Bcast(pivot_row, n, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
+        MPI_Bcast(&pivot_b, 1, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
+
+        // Substituir valores locais pela linha pivô recebida
+        for (int j = 0; j < n; ++j) {
+            matrix[k * n + j] = pivot_row[j];
+        }
+        b[k] = pivot_b;
+
+        free(pivot_row);
 
         // Eliminação das linhas subsequentes
         for (int i = k + 1; i < n; ++i) {
@@ -29,11 +44,6 @@ void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
                 b[i] -= factor * b[k];
             }
         }
-
-        // Reduzir fatores para garantir sincronização
-        double local_factor = b[k];
-        double global_factor;
-        MPI_Reduce(&local_factor, &global_factor, 1, MPI_DOUBLE, MPI_SUM, k % size, MPI_COMM_WORLD);
     }
 }
 
@@ -53,7 +63,7 @@ void backSubstitution(double *matrix, double *b, double *x, int n, int rank, int
 int main(int argc, char *argv[]) {
     double tempo_inicial, tempo_final; /* Tempo de execução */
 
-    int n = 5000; // Tamanho do sistema
+    int n = 2000; // Tamanho do sistema
     double *matrix, *b, *x;
 
     // Alocação dinâmica dos endereços para a matriz

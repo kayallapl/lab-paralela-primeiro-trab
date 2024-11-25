@@ -233,3 +233,64 @@ Foram gastos 17.2685780000 segundos
 Erro total: 3.014510e-09
 ```
 
+Substituímos o MPI_Bcast pelo uso combinado de MPI_Reduce seguido de MPI_Bcast no algoritmo de eliminação de Gauss para otimizar a comunicação entre os processos. Após a redução, o MPI_Bcast é utilizado para disseminar os resultados da soma apenas uma vez, garantindo que todos os processos tenham acesso aos valores necessários.
+
+```c
+void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
+    for (int k = 0; k < n; ++k) {
+        if (rank == k % size) {
+            // Normalizar linha pivô
+            double pivot = matrix[k * n + k];
+            for (int j = k; j < n; ++j) {
+                matrix[k * n + j] /= pivot;
+            }
+            b[k] /= pivot;
+        }
+
+        // Reduzir linha pivô para todos os processos
+        double *pivot_row = (double *)malloc(n * sizeof(double));
+        MPI_Reduce(&matrix[k * n], pivot_row, n, MPI_DOUBLE, MPI_SUM, k % size, MPI_COMM_WORLD);
+
+        double pivot_b;
+        MPI_Reduce(&b[k], &pivot_b, 1, MPI_DOUBLE, MPI_SUM, k % size, MPI_COMM_WORLD);
+
+        // Broadcast dos valores reduzidos (somente o processo responsável envia)
+        MPI_Bcast(pivot_row, n, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
+        MPI_Bcast(&pivot_b, 1, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
+
+        // Substituir valores locais pela linha pivô recebida
+        for (int j = 0; j < n; ++j) {
+            matrix[k * n + j] = pivot_row[j];
+        }
+        b[k] = pivot_b;
+
+        free(pivot_row);
+
+        // Eliminação das linhas subsequentes
+        for (int i = k + 1; i < n; ++i) {
+            if (i % size == rank) {
+                double factor = matrix[i * n + k];
+                for (int j = k; j < n; ++j) {
+                    matrix[i * n + j] -= factor * matrix[k * n + j];
+                }
+                b[i] -= factor * b[k];
+            }
+        }
+    }
+}
+```
+
+Fizemos o teste utilizando n = 2000, caso médio. Porém, isso não mudou tanto o tempo de execução de cada um.
+```shell
+$ mpirun -np 1 ./gauss_mpi_melhorado
+Foram gastos 3.9976750000 segundos
+
+$ mpirun -np 2 ./gauss_mpi_melhorado
+Foram gastos 2.0999380000 segundos
+
+$ mpirun -np 4 ./gauss_mpi_melhorado                
+Foram gastos 1.1897240000 segundos
+
+```
+
+

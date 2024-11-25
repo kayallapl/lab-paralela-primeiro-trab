@@ -8,12 +8,12 @@ void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
     double *pivot_row = (double *)malloc(n * sizeof(double));
 
     for (int k = 0; k < n; ++k) {
-        // Reduzir e compartilhar simultaneamente a linha pivô com MPI_Allreduce
-        MPI_Allreduce(&matrix[k * n], pivot_row, n, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        // Distribui a linha pivô para todos os processos com MPI_Scatter
+        MPI_Scatter(&matrix[k * n], n / size, MPI_DOUBLE, pivot_row, n / size, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
 
         // Reduzir e compartilhar o elemento de b correspondente
         double pivot_b;
-        MPI_Allreduce(&b[k], &pivot_b, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Bcast(&b[k], 1, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
 
         if (rank == k % size) {
             // Atualiza a linha pivô no processo raiz para manter consistência local
@@ -29,7 +29,7 @@ void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
                 double factor = matrix[i * n + k];
                 for (int j = k; j < n; ++j) {
                     matrix[i * n + j] -= factor * pivot_row[j];
-                }zzzzzzzzzzz
+                }
                 b[i] -= factor * pivot_b;
             }
         }

@@ -343,3 +343,51 @@ $ mpirun -np 4 ./gauss_mpi_melhorado
 Foram gastos 0.9792150000 segundos
 ```
 
+Testamos então com o MPI_Scatter para distribuir a matriz para os processos, de forma que cada processo tenha uma parte da matriz para trabalhar.
+Não há necessidade de um MPI_Gather explícito, já que as atualizações nos vetores x podem ser compartilhadas com MPI_Bcast.
+
+```c
+void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
+    double *pivot_row = (double *)malloc(n * sizeof(double));
+
+    for (int k = 0; k < n; ++k) {
+        // Distribui a linha pivô para todos os processos com MPI_Scatter
+        MPI_Scatter(&matrix[k * n], n / size, MPI_DOUBLE, pivot_row, n / size, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
+
+        // Reduzir e compartilhar o elemento de b correspondente
+        double pivot_b;
+        MPI_Bcast(&b[k], 1, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
+
+        if (rank == k % size) {
+            // Atualiza a linha pivô no processo raiz para manter consistência local
+            for (int j = 0; j < n; ++j) {
+                matrix[k * n + j] = pivot_row[j];
+            }
+            b[k] = pivot_b;
+        }
+
+        // Eliminação das linhas subsequentes
+        for (int i = k + 1; i < n; ++i) {
+            if (i % size == rank) {
+                double factor = matrix[i * n + k];
+                for (int j = k; j < n; ++j) {
+                    matrix[i * n + j] -= factor * pivot_row[j];
+                }
+                b[i] -= factor * pivot_b;
+            }
+        }
+    }
+
+    free(pivot_row);
+}
+```
+
+Este código deu o mesmo tempo que o anterior.
+$ mpirun -np 1 ./gauss_mpi_melhorado
+Foram gastos 3.4971430000 segundos
+
+$ mpirun -np 2 ./gauss_mpi_melhorado
+Foram gastos 1.8210440000 segundos
+
+$ mpirun -np 4 ./gauss_mpi_melhorado
+Foram gastos 0.9705120000 segundos

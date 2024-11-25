@@ -1,3 +1,8 @@
+## **Relatório Trabalho 1 de Lab de Programação Paralela**
+
+**Alunos: Kayalla Pontes, Luiz Fellippe Loureiro, Niasi Magalhães**
+
+
 O chatGPT forneceu o seguinte código:
 
 ```c
@@ -394,4 +399,4 @@ $ mpirun -np 4 ./gauss_mpi_melhorado
 Foram gastos 0.9705120000 segundos
 ```
 
-A análise de speedup e eficiência está em [https://github.com/kayallapl/lab-paralela-primeiro-trab/blob/main/Análises_Speedup.pdf](Análises Speedup).
+A análise de speedup e eficiência está em [Análises Speedup](https://github.com/kayallapl/lab-paralela-primeiro-trab/blob/main/Análises%20Speedup.pdf).

@@ -1,6 +1,6 @@
 O chatGPT forneceu o seguinte código:
 
-```python
+```c
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
 
 A primeira coisa que fizemos foi adicionar a função MPI_Wtime() para marcar o tempo de execução.
 
-```python
+```c
 tempo_inicial = MPI_Wtime();
 gaussElimination(matrix, b, n, rank, size);
 backSubstitution(matrix, b, x, n, rank, size);
@@ -111,4 +111,44 @@ Foram gastos 0.0001970000 segundos
 ```
 
 Então, ao invés de criar uma pequena matriz estática, criamos dinamicamente uma matriz de 1000 valores. Para isso, usamos malloc para armazenar essa matriz.
+
+```c
+    int n = 2000; // Tamanho do sistema
+    double *matrix, *b, *x;
+
+    // Alocação dinâmica dos endereços para a matriz
+    matrix = (double *)malloc(n * n * sizeof(double));
+    b = (double *)malloc(n * sizeof(double));
+    x = (double *)malloc(n * sizeof(double));
+
+    if (!matrix || !b || !x) {
+        printf("Erro na alocação de memória\n");
+        exit(1);
+    }
+    
+    // Preenche matriz e vetor com valores aleatórios
+    srand(time(NULL));
+    for (int i = 0; i < n; ++i) {
+        b[i] = rand() % 100; // Valores no vetor b
+        for (int j = 0; j < n; ++j) {
+            matrix[i * n + j] = (i == j) ? rand() % 100 + 1 : rand() % 100;
+            // Matriz diagonal dominante
+        }
+    }
+```
+
+Para conferir se o resultado encontrado para a matriz x está correto, comparamos ax (matriz inicial * resultado encontrado) com o b aleatório inicial:
+
+```c
+// Verificando a precisão da solução
+double error = 0.0;
+for (int i = 0; i < n; ++i) {
+    double ax = 0.0;
+    for (int j = 0; j < n; ++j) {
+        ax += matrix[i * n + j] * x[j]; // calcula os resultados para b com x encontrado
+    }
+    error += fabs(ax - b[i]); // compara o valor com o b aleatório inicial
+}
+printf("Erro total: %e\n", error);
+```
 

@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
+#include <math.h>
+#include <time.h>
 
 void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
     for (int k = 0; k < n; ++k) {
@@ -31,10 +33,10 @@ void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
 }
 
 void backSubstitution(double *matrix, double *b, double *x, int n, int rank, int size) {
-    for (int i = n - 1; i >= 0; --i) {
+    for (int i = n - 1; i >= 0; --i) { // Começa da última linha e vai "subindo"
         if (rank == i % size) {
-            x[i] = b[i];
-            for (int j = i + 1; j < n; ++j) {
+            x[i] = b[i]; // Inicializa x[i] com o valor correspondente em b[i]
+            for (int j = i + 1; j < n; ++j) { // Subtrai as contribuições das variáveis já resolvidas
                 x[i] -= matrix[i * n + j] * x[j];
             }
         }
@@ -44,14 +46,28 @@ void backSubstitution(double *matrix, double *b, double *x, int n, int rank, int
 
 int main(int argc, char *argv[]) {
     double tempo_inicial, tempo_final; /* Tempo de execução */
-    int n = 3; // Dimensão do sistema (modifique conforme necessário)
-    double matrix[] = {
-        2.0, 1.0, -1.0,
-        -3.0, -1.0, 2.0,
-        -2.0, 1.0, 2.0
-    };
-    double b[] = {8.0, -11.0, -3.0};
-    double x[3];
+
+    int n = 2000; // Tamanho do sistema
+    double *matrix, *b, *x;
+
+    // Alocação dinâmica dos endereços para a matriz
+    matrix = (double *)malloc(n * n * sizeof(double));
+    b = (double *)malloc(n * sizeof(double));
+    x = (double *)malloc(n * sizeof(double));
+
+    if (!matrix || !b || !x) {
+        printf("Erro na alocação de memória\n");
+        exit(1);
+    }
+    
+    // Preenche matriz e vetor com valores aleatórios
+    srand(time(NULL));
+    for (int i = 0; i < n; ++i) {
+        b[i] = rand() % 100; // Valores no vetor b
+        for (int j = 0; j < n; ++j) {
+            matrix[i * n + j] = (i == j) ? rand() % 100 + 1 : rand() % 100; // Matriz diagonal dominante
+        }
+    }
 
     int rank, size;
 
@@ -65,13 +81,32 @@ int main(int argc, char *argv[]) {
     tempo_final = MPI_Wtime();
 
     if (rank == 0) {
-        printf("Solução do sistema:\n");
-        for (int i = 0; i < n; ++i) {
+        printf("Foram gastos %.10f segundos\n",tempo_final-tempo_inicial);
+
+        // Exemplo de como consultar soluções
+        printf("Algumas soluções:\n");
+        for (int i = 0; i < 10 && i < n; ++i) {
             printf("x[%d] = %f\n", i, x[i]);
         }
-        printf("Foram gastos %.10f segundos\n",tempo_final-tempo_inicial);
+
+        // Verificando a precisão da solução
+        double error = 0.0;
+        for (int i = 0; i < n; ++i) {
+            double ax = 0.0;
+            for (int j = 0; j < n; ++j) {
+                ax += matrix[i * n + j] * x[j]; // calcula os resultados para b com x encontrado
+            }
+            error += fabs(ax - b[i]); // compara o valor com o b aleatório inicial
+        }
+        printf("Erro total: %e\n", error);
     }
 
     MPI_Finalize();
+
+    // Liberação de memória
+    free(matrix);
+    free(b);
+    free(x);
+
     return 0;
 }

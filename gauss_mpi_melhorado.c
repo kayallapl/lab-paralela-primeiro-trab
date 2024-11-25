@@ -29,6 +29,11 @@ void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
                 b[i] -= factor * b[k];
             }
         }
+
+        // Reduzir fatores para garantir sincronização
+        double local_factor = b[k];
+        double global_factor;
+        MPI_Reduce(&local_factor, &global_factor, 1, MPI_DOUBLE, MPI_SUM, k % size, MPI_COMM_WORLD);
     }
 }
 
@@ -39,6 +44,7 @@ void backSubstitution(double *matrix, double *b, double *x, int n, int rank, int
             for (int j = i + 1; j < n; ++j) { // Subtrai as contribuições das variáveis já resolvidas
                 x[i] -= matrix[i * n + j] * x[j];
             }
+            x[i] /= matrix[i * n + i]; // Corrigido: Normalização pelo coeficiente da diagonal principal
         }
         MPI_Bcast(&x[i], 1, MPI_DOUBLE, i % size, MPI_COMM_WORLD);
     }
@@ -47,7 +53,7 @@ void backSubstitution(double *matrix, double *b, double *x, int n, int rank, int
 int main(int argc, char *argv[]) {
     double tempo_inicial, tempo_final; /* Tempo de execução */
 
-    int n = 2000; // Tamanho do sistema
+    int n = 5000; // Tamanho do sistema
     double *matrix, *b, *x;
 
     // Alocação dinâmica dos endereços para a matriz
@@ -84,10 +90,9 @@ int main(int argc, char *argv[]) {
         printf("Foram gastos %.10f segundos\n",tempo_final-tempo_inicial);
 
         // Exemplo de como consultar soluções
-        printf("Algumas soluções:\n");
-        for (int i = 0; i < 10 && i < n; ++i) {
-            printf("x[%d] = %f\n", i, x[i]);
-        }
+        // for (int i = 0; i < 10 && i < n; ++i) {
+        //     printf("x[%d] = %f\n", i, x[i]);
+        // }
 
         // Verificando a precisão da solução
         double error = 0.0;

@@ -110,7 +110,7 @@ x[2] = -1.000000
 Foram gastos 0.0001970000 segundos
 ```
 
-Então, ao invés de criar uma pequena matriz estática, criamos dinamicamente uma matriz de 1000 valores. Para isso, usamos malloc para armazenar essa matriz.
+Então, ao invés de criar uma pequena matriz estática, criamos dinamicamente uma matriz de 2000 valores (para os parâmetros do computador em que foi rodado, é um valor médio). Para isso, usamos malloc para armazenar essa matriz.
 
 ```c
     int n = 2000; // Tamanho do sistema
@@ -150,5 +150,86 @@ for (int i = 0; i < n; ++i) {
     error += fabs(ax - b[i]); // compara o valor com o b aleatório inicial
 }
 printf("Erro total: %e\n", error);
+```
+
+Obtivemos os seguintes resultados:
+
+```shell
+$ mpirun -np 2 ./gauss_mpi_melhorado                
+Foram gastos 2.0763030000 segundos
+Erro total: 2.814443e-10
+
+$ mpirun -np 4 ./gauss_mpi_melhorado                
+Foram gastos 1.1009420000 segundos
+Erro total: 1.766998e-10
+
+$ mpirun -np 8 ./gauss_mpi_melhorado                
+Foram gastos 2.2496170000 segundos
+Erro total: 6.402490e-10
+```
+
+Notamos que a função `backSubstitution` tinha um erro: no final, o valor de x[i] não estava sendo normalizado pelo coeficiente da diagonal principal, o que pode levar a resultados incorretos. Adicionamos então a linha `x[i] /= matrix[i * n + i];` para consertar. Isso diminuiu um pouco o erro:
+
+```shell
+$ mpirun -np 2 ./gauss_mpi_melhorado                
+Foram gastos 2.0777840000 segundos
+Erro total: 1.280451e-10
+
+$ mpirun -np 4 ./gauss_mpi_melhorado
+Foram gastos 1.1075860000 segundos
+Erro total: 1.769355e-10
+
+$ mpirun -np 8 ./gauss_mpi_melhorado
+Foram gastos 2.1546820000 segundos
+Erro total: 3.593319e-10
+```
+
+Depois disso, tentamos rodar para um valor um pouco mais extremo, uma matriz de n = 5.000. O tempo aumentou consideravelmente.
+
+Como o computador era quadcore, tomamos a liberdade de ao invés de usar 2, 4 e 8, usar 1, 2 e 4, pois nos entregava resultados mais satisfatórios em relação ao tempo.
+
+##### Resultado para n = 100:
+```shell
+$ mpirun -np 1 ./gauss_mpi_melhorado
+Foram gastos 0.0012420000 segundos
+Erro total: 3.888513e-13
+
+$ mpirun -np 2 ./gauss_mpi_melhorado
+Foram gastos 0.0017670000 segundos
+Erro total: 1.271587e-13
+
+$ mpirun -np 4 ./gauss_mpi_melhorado
+Foram gastos 0.0017940000 segundos
+Erro total: 5.108414e-13
+```
+
+##### Resultado para n = 2000:
+```shell
+$ mpirun -np 1 ./gauss_mpi_melhorado                
+Foram gastos 3.9990370000 segundos
+Erro total: 2.640805e-10
+
+$ mpirun -np 2 ./gauss_mpi_melhorado                
+Foram gastos 2.0781060000 segundos
+Erro total: 2.371149e-10
+
+$ mpirun -np 4 ./gauss_mpi_melhorado                
+Foram gastos 1.1092260000 segundos
+Erro total: 9.125933e-11
+```
+
+##### Resultado para n = 5000:
+```shell
+$ mpirun -np 1 ./gauss_mpi_melhorado
+Foram gastos 62.5402540000 segundos
+Erro total: 6.083387e-10
+
+$ mpirun -np 2 ./gauss_mpi_melhorado
+Foram gastos 32.6793270000 segundos
+Erro total: 4.035896e-09
+
+$ mpirun -np 4 ./gauss_mpi_melhorado
+Foram gastos 17.2685780000 segundos
+Erro total: 3.014510e-09
 ```
 

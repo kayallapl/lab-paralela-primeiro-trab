@@ -1,6 +1,7 @@
 ## **Relatório Trabalho 1 de Lab de Programação Paralela**
 
-**Alunos: Kayalla Pontes, Luiz Fellippe Loureiro, Niasi Magalhães**
+Alunos: **Kayalla Pontes, Luiz Fellippe Loureiro, Niasi Magalhães**
+Repositório no github: **[lab-paralela-primeiro-trab](https://github.com/kayallapl/lab-paralela-primeiro-trab/tree/main)**
 
 
 O chatGPT forneceu o seguinte código:

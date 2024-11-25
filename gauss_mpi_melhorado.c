@@ -5,46 +5,37 @@
 #include <time.h>
 
 void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
+    double *pivot_row = (double *)malloc(n * sizeof(double));
+
     for (int k = 0; k < n; ++k) {
-        if (rank == k % size) {
-            // Normalizar linha pivô
-            double pivot = matrix[k * n + k];
-            for (int j = k; j < n; ++j) {
-                matrix[k * n + j] /= pivot;
-            }
-            b[k] /= pivot;
-        }
+        // Reduzir e compartilhar simultaneamente a linha pivô com MPI_Allreduce
+        MPI_Allreduce(&matrix[k * n], pivot_row, n, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-        // Reduzir linha pivô para todos os processos
-        double *pivot_row = (double *)malloc(n * sizeof(double));
-        MPI_Reduce(&matrix[k * n], pivot_row, n, MPI_DOUBLE, MPI_SUM, k % size, MPI_COMM_WORLD);
-
+        // Reduzir e compartilhar o elemento de b correspondente
         double pivot_b;
-        MPI_Reduce(&b[k], &pivot_b, 1, MPI_DOUBLE, MPI_SUM, k % size, MPI_COMM_WORLD);
+        MPI_Allreduce(&b[k], &pivot_b, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-        // Broadcast dos valores reduzidos (somente o processo responsável envia)
-        MPI_Bcast(pivot_row, n, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
-        MPI_Bcast(&pivot_b, 1, MPI_DOUBLE, k % size, MPI_COMM_WORLD);
-
-        // Substituir valores locais pela linha pivô recebida
-        for (int j = 0; j < n; ++j) {
-            matrix[k * n + j] = pivot_row[j];
+        if (rank == k % size) {
+            // Atualiza a linha pivô no processo raiz para manter consistência local
+            for (int j = 0; j < n; ++j) {
+                matrix[k * n + j] = pivot_row[j];
+            }
+            b[k] = pivot_b;
         }
-        b[k] = pivot_b;
-
-        free(pivot_row);
 
         // Eliminação das linhas subsequentes
         for (int i = k + 1; i < n; ++i) {
             if (i % size == rank) {
                 double factor = matrix[i * n + k];
                 for (int j = k; j < n; ++j) {
-                    matrix[i * n + j] -= factor * matrix[k * n + j];
-                }
-                b[i] -= factor * b[k];
+                    matrix[i * n + j] -= factor * pivot_row[j];
+                }zzzzzzzzzzz
+                b[i] -= factor * pivot_b;
             }
         }
     }
+
+    free(pivot_row);
 }
 
 void backSubstitution(double *matrix, double *b, double *x, int n, int rank, int size) {

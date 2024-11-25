@@ -293,4 +293,53 @@ Foram gastos 1.1897240000 segundos
 
 ```
 
+Substituímos então tudo por por MPI_Allreduce, que elimina a necessidade de um MPI_Reduce seguido por MPI_Bcast, unindo as duas operações em uma única chamada de função. O MPI_Allreduce realiza a redução dos dados em todos os processos e distribui simultaneamente o resultado para todos.
+
+```c
+void gaussElimination(double *matrix, double *b, int n, int rank, int size) {
+    double *pivot_row = (double *)malloc(n * sizeof(double));
+
+    for (int k = 0; k < n; ++k) {
+        // Reduzir e compartilhar simultaneamente a linha pivô com MPI_Allreduce
+        MPI_Allreduce(&matrix[k * n], pivot_row, n, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        // Reduzir e compartilhar o elemento de b correspondente
+        double pivot_b;
+        MPI_Allreduce(&b[k], &pivot_b, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        if (rank == k % size) {
+            // Atualiza a linha pivô no processo raiz para manter consistência local
+            for (int j = 0; j < n; ++j) {
+                matrix[k * n + j] = pivot_row[j];
+            }
+            b[k] = pivot_b;
+        }
+
+        // Eliminação das linhas subsequentes
+        for (int i = k + 1; i < n; ++i) {
+            if (i % size == rank) {
+                double factor = matrix[i * n + k];
+                for (int j = k; j < n; ++j) {
+                    matrix[i * n + j] -= factor * pivot_row[j];
+                }
+                b[i] -= factor * pivot_b;
+            }
+        }
+    }
+
+    free(pivot_row);
+}
+```
+
+Os resultados de tempo foram um pouco melhores agora:
+```shell
+$ mpirun -np 1 ./gauss_mpi_melhorado                
+Foram gastos 3.4877870000 segundos
+
+$ mpirun -np 2 ./gauss_mpi_melhorado                
+Foram gastos 1.8409990000 segundos
+
+$ mpirun -np 4 ./gauss_mpi_melhorado                
+Foram gastos 0.9792150000 segundos
+```
 
